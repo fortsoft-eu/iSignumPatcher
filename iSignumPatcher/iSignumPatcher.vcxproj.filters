@@ -12,6 +12,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="SelectionEdit.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -23,6 +26,9 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="SelectionEdit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="core.h">
       <Filter>Header Files</Filter>
     </ClInclude>

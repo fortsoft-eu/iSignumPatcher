@@ -21,14 +21,16 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.0
+ * Last modified for version 1.0.0.1
  */
 
 #ifndef CORE_H
 #define CORE_H
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
 typedef void(*LogFn)(const char*);
+
 /// Loads, extracts, and patches iSignum while reporting progress through log.
 /// Releases all input and payload buffers and removes any remaining temporary file.
 /// Returns TRUE on success, including when no changes are required.

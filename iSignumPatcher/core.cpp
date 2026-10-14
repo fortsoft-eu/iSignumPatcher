@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.0
+ * Last modified for version 1.0.0.1
  */
 
 #include "core.h"
@@ -176,35 +176,160 @@ static int symbol(Bits* b, Huff* h) {
 /// Returns TRUE only when input consumption and output length match the supplied sizes.
 static BOOL inflate(const BYTE* src, DWORD ns, BYTE* out, DWORD no) {
     static const BYTE order[19] = {
-        16, 17, 18, 0, 8, 7, 9, 6,
-        10, 5, 11, 4, 12, 3, 13, 2,
-        14, 1, 15
+        16,
+        17,
+        18,
+        0,
+        8,
+        7,
+        9,
+        6,
+        10,
+        5,
+        11,
+        4,
+        12,
+        3,
+        13,
+        2,
+        14,
+        1,
+        15
     };
     static const WORD lb[29] = {
-        3, 4, 5, 6, 7, 8, 9, 10,
-        11, 13, 15, 17, 19, 23, 27, 31,
-        35, 43, 51, 59, 67, 83, 99, 115,
-        131, 163, 195, 227, 258
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        13,
+        15,
+        17,
+        19,
+        23,
+        27,
+        31,
+        35,
+        43,
+        51,
+        59,
+        67,
+        83,
+        99,
+        115,
+        131,
+        163,
+        195,
+        227,
+        258
     };
     static const BYTE le[29] = {
-        0, 0, 0, 0, 0, 0, 0, 0,
-        1, 1, 1, 1, 2, 2, 2, 2,
-        3, 3, 3, 3, 4, 4, 4, 4,
-        5, 5, 5, 5, 0
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        2,
+        3,
+        3,
+        3,
+        3,
+        4,
+        4,
+        4,
+        4,
+        5,
+        5,
+        5,
+        5,
+        0
     };
     static const WORD db[30] = {
-        1, 2, 3, 4, 5, 7, 9, 13,
-        17, 25, 33, 49, 65, 97, 129, 193,
-        257, 385, 513, 769, 1025, 1537, 2049, 3073,
-        4097, 6145, 8193, 12289, 16385, 24577
+        1,
+        2,
+        3,
+        4,
+        5,
+        7,
+        9,
+        13,
+        17,
+        25,
+        33,
+        49,
+        65,
+        97,
+        129,
+        193,
+        257,
+        385,
+        513,
+        769,
+        1025,
+        1537,
+        2049,
+        3073,
+        4097,
+        6145,
+        8193,
+        12289,
+        16385,
+        24577
     };
     static const BYTE de[30] = {
-        0, 0, 0, 0, 1, 1, 2, 2,
-        3, 3, 4, 4, 5, 5, 6, 6,
-        7, 7, 8, 8, 9, 9, 10, 10,
-        11, 11, 12, 12, 13, 13
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        2,
+        2,
+        3,
+        3,
+        4,
+        4,
+        5,
+        5,
+        6,
+        6,
+        7,
+        7,
+        8,
+        8,
+        9,
+        9,
+        10,
+        10,
+        11,
+        11,
+        12,
+        12,
+        13,
+        13
     };
-    Bits b = { src, ns, 0, 0, 0, TRUE };
+    Bits b = {
+        src,
+        ns,
+        0,
+        0,
+        0,
+        TRUE
+    };
     DWORD pos = 0;
     BOOL last = FALSE;
     Huff h, d, c;
@@ -356,7 +481,10 @@ static DWORD offset(PE* p, DWORD va, BOOL code = FALSE) {
     for (int i = 0; i < p->count; i++) {
         BYTE* s = p->b + p->sec + i * 40;
         DWORD start = u32(s + 12), size = u32(s + 16), raw = u32(s + 20);
-        if (r >= start && r - start < size && (!code || (u32(s + 36) & 0x20000000) != 0) && range(raw, r - start + 1, p->n)) {
+        if (r >= start
+                && r - start < size
+                && (!code || (u32(s + 36) & 0x20000000) != 0)
+                && range(raw, r - start + 1, p->n)) {
             return raw + r - start;
         }
     }
@@ -384,7 +512,23 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
     if (!peinit(&p, b, n)) {
         return 0;
     }
-    static const BYTE name[] = { 7, 13, 'T', 's', 'S', 'k', 'i', 'n', 'M', 'a', 'n', 'a', 'g', 'e', 'r' };
+    static const BYTE name[] = {
+        7,
+        13,
+        'T',
+        's',
+        'S',
+        'k',
+        'i',
+        'n',
+        'M',
+        'a',
+        'n',
+        'a',
+        'g',
+        'e',
+        'r'
+    };
     DWORD r = 0, hits = 0;
     for (DWORD i = 0; range(i, sizeof(name), n); i++) {
         if (eq(b + i, name, sizeof(name))) {
@@ -439,8 +583,24 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
         return 0;
     }
     DWORD so = offset(&p, av, TRUE);
-    static const BYTE sig[] = { 0x53, 0x8b, 0xd8, 0x3a, 0x53, 0x40, 0x74, 0x7e, 0x88, 0x53, 0x40, 0x84, 0xd2 };
-    if (!range(so, sizeof(sig), n) || !eq(b + so + 1, sig + 1, sizeof(sig) - 1) || b[so] != 0x53 && b[so] != 0xc3) {
+    static const BYTE sig[] = {
+        0x53,
+        0x8b,
+        0xd8,
+        0x3a,
+        0x53,
+        0x40,
+        0x74,
+        0x7e,
+        0x88,
+        0x53,
+        0x40,
+        0x84,
+        0xd2
+    };
+    if (!range(so, sizeof(sig), n)
+            || !eq(b + so + 1, sig + 1, sizeof(sig) - 1)
+            || b[so] != 0x53 && b[so] != 0xc3) {
         return 0;
     }
     DWORD ct = 0;
@@ -449,7 +609,21 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
         if (b[i] != 0xc6 || b[i + 1] != 0x43 || b[i + 2] != 0x40 || b[i + 3] > 1) {
             continue;
         }
-        static const BYTE a[] = { 0x8b, 0xcb, 0xb2, 1, 0xa1 }, z[] = { 0x89, 0x83, 0xf8, 0, 0, 0 };
+        static const BYTE a[] = {
+            0x8b,
+            0xcb,
+            0xb2,
+            1,
+            0xa1
+        };
+        static const BYTE z[] = {
+            0x89,
+            0x83,
+            0xf8,
+            0,
+            0,
+            0
+        };
         if (!eq(b + i + 4, a, 5) || b[i + 13] != 0xe8 || !eq(b + i + 18, z, 6)) {
             continue;
         }
@@ -465,7 +639,13 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
     hits = 0;
     for (DWORD at = co; at - co < 256 && range(at, 4, n); at += 4) {
         DWORD o = offset(&p, u32(b + at), TRUE);
-        if (o != ~0UL && o < ct && ct - o < 2048 && range(o, 3, n) && b[o] == 0x55 && b[o + 1] == 0x8b && b[o + 2] == 0xec) {
+        if (o != ~0UL
+                && o < ct
+                && ct - o < 2048
+                && range(o, 3, n)
+                && b[o] == 0x55
+                && b[o + 1] == 0x8b
+                && b[o + 2] == 0xec) {
             hits++;
         }
     }
@@ -524,7 +704,11 @@ static BOOL patchLoadedFile(const char* path, LogFn log, BYTE* input, DWORD n, B
         DWORD start = zip + 30 + u16(input + zip + 26) + u16(input + zip + 28), cs = u32(input + zip + 18);
         size = u32(input + zip + 22);
         WORD method = u16(input + zip + 8);
-        if ((u16(input + zip + 6) & 9) != 0 || !size || size > 128UL * 1024 * 1024 || !range(start, cs, n) || method != 0 && method != 8) {
+        if ((u16(input + zip + 6) & 9) != 0
+                || !size
+                || size > 128UL * 1024 * 1024
+                || !range(start, cs, n)
+                || method != 0 && method != 8) {
             log("ERROR: The embedded archive format is not supported.");
             return FALSE;
         }
@@ -630,7 +814,9 @@ BOOL PatchFile(const char* path, LogFn log) {
     }
     log("OK: File \"iSignum.exe\" was loaded.");
     BYTE* payload = input;
-    char temp[MAX_PATH] = { 0 };
+    char temp[MAX_PATH] = {
+        0
+    };
     BOOL ok = patchLoadedFile(path, log, input, n, payload, temp);
     if (temp[0]) {
         DeleteFileA(temp);
