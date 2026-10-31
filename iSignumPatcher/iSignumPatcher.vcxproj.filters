@@ -50,6 +50,9 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
+    <None Include="iSignumPatcher.manifest">
+      <Filter>Resource Files</Filter>
+    </None>
     <None Include="postbuild.ps1">
       <Filter>Source Files\Build</Filter>
     </None>

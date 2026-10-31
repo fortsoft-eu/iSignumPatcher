@@ -122,6 +122,7 @@ static void LayoutMainForm(HWND window) {
     int gripHeight = GetSystemMetrics(SM_CYHSCROLL);
     SetWindowPos(sizeGrip, HWND_BOTTOM, client.right - gripWidth, client.bottom - gripHeight,
         gripWidth, gripHeight, SWP_NOACTIVATE | (IsZoomed(window) ? SWP_HIDEWINDOW : SWP_SHOWWINDOW));
+    RedrawWindow(window, nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN);
 }
 
 /// Uses the resource-created controls and retains their Windows-mapped sizes before processing starts.

@@ -31,6 +31,8 @@
     <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
     <IntDir>$(Configuration)\</IntDir>
     <TargetName>iSignumPatcher</TargetName>
+    <GenerateManifest>false</GenerateManifest>
+    <EmbedManifest>false</EmbedManifest>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
@@ -56,10 +58,7 @@
       <ImageHasSafeExceptionHandlers>false</ImageHasSafeExceptionHandlers>
       <TargetMachine>MachineX86</TargetMachine>
       <GenerateDebugInformation>false</GenerateDebugInformation>
-      <GenerateManifest>true</GenerateManifest>
-      <EnableUAC>true</EnableUAC>
-      <UACExecutionLevel>AsInvoker</UACExecutionLevel>
-      <UACUIAccess>false</UACUIAccess>
+      <EnableUAC>false</EnableUAC>
     </Link>
     <PostBuildEvent>
       <Command>powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$(ProjectDir)postbuild.ps1" -Path "$(TargetPath)"</Command>
@@ -82,6 +81,9 @@
     <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="iSignumPatcher.manifest">
+      <SubType>Designer</SubType>
+    </None>
     <None Include="postbuild.ps1" />
     <None Include="..\license.txt" />
   </ItemGroup>
