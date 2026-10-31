@@ -26,13 +26,61 @@
 
 #include "core.h"
 #include "SelectionEdit.h"
+#include "SystemDialogTemplate.h"
+#include "resource.h"
+
+/// Optional modern DPI entry point, resolved without adding a newer user32.dll import.
+typedef UINT(WINAPI* GetDpiFunction)(HWND);
+
+/// Control dimensions and gaps read from the Windows-scaled dialog resource.
+struct MainFormLayout {
+    SIZE button;
+    POINT margin;
+    int buttonBottom;
+    int editButtonGap;
+};
 
 static HWND editBox;
 static HWND okButton;
 static HWND sizeGrip;
 static HWND mainWindow;
+static MainFormLayout layout;
 static BOOL running = TRUE;
 static char inputPath[MAX_PATH];
+
+UINT WindowDpi(HWND window) {
+    GetDpiFunction function =
+        reinterpret_cast<GetDpiFunction>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"));
+    if (function && window) {
+        return function(window);
+    }
+    HDC dc = GetDC(window);
+    UINT dpi = dc ? GetDeviceCaps(dc, LOGPIXELSY) : 96;
+    if (dc) {
+        ReleaseDC(window, dc);
+    }
+    return dpi ? dpi : 96;
+}
+
+HFONT CreateUiFont(HWND window) {
+    NONCLIENTMETRICSW metrics = NONCLIENTMETRICSW{};
+    metrics.cbSize = sizeof(metrics);
+    if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0)) {
+        HDC dc = GetDC(nullptr);
+        int systemDpi = dc ? GetDeviceCaps(dc, LOGPIXELSY) : 96;
+        if (dc) {
+            ReleaseDC(nullptr, dc);
+        }
+        metrics.lfMessageFont.lfHeight =
+            MulDiv(metrics.lfMessageFont.lfHeight, WindowDpi(window), systemDpi ? systemDpi : 96);
+        return CreateFontIndirectW(&metrics.lfMessageFont);
+    }
+    LOGFONTW font = LOGFONTW{};
+    font.lfHeight = -MulDiv(8, WindowDpi(window), 72);
+    font.lfCharSet = DEFAULT_CHARSET;
+    lstrcpyW(font.lfFaceName, L"MS Shell Dlg");
+    return CreateFontIndirectW(&font);
+}
 
 /// Appends a message and a CR/LF line ending to the read-only log control.
 static void logline(const char* text) {
@@ -48,91 +96,126 @@ static DWORD WINAPI worker(void*) {
     return 0;
 }
 
-/// Creates and lays out the patcher controls and handles processing completion and closing.
-static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
-    switch (message) {
-        case WM_CREATE:
-            editBox = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP
-                | WS_HSCROLL | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL | ES_AUTOVSCROLL,
-                6, 6, 600, 300, window, (HMENU)10, 0, 0);
-            if (!editBox) {
-                return -1;
-            }
-            if (!InstallSelectionEditHandler(editBox)) {
-                return -1;
-            }
-            SendMessageA(editBox, EM_SETLIMITTEXT, 65535, 0);
-            okButton = CreateWindowA("BUTTON", "OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
-                260, 312, 75, 23, window, (HMENU)IDOK, 0, 0);
-            if (!okButton) {
-                return -1;
-            }
-            sizeGrip = CreateWindowA("SCROLLBAR", "", WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP
-                | SBS_SIZEBOXBOTTOMRIGHTALIGN, 0, 0, GetSystemMetrics(SM_CXVSCROLL),
-                GetSystemMetrics(SM_CYHSCROLL), window, 0, 0, 0);
-            if (!sizeGrip) {
-                return -1;
-            }
-            SendMessageA(editBox, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-            SendMessageA(okButton, WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), TRUE);
-            EnableWindow(okButton, FALSE);
-            PostMessageA(window, WM_APP + 1, 0, 0);
-            return 0;
-        case WM_APP + 1:
-        {
-            HANDLE thread = CreateThread(0, 0, worker, 0, 0, 0);
-            if (thread) {
-                CloseHandle(thread);
-            } else {
-                logline("ERROR: The worker thread could not be started.");
-                PostMessageA(window, WM_APP + 2, 0, 0);
-            }
-            return 0;
-        }
-        case WM_APP + 2:
-            running = FALSE;
-            SetWindowTextA(window, wParam ? "iSignumPatcher - Completed" : "iSignumPatcher - Failed");
-            EnableWindow(okButton, TRUE);
-            SetFocus(okButton);
-            return 0;
-        case WM_SIZE:
-        {
-            int width = LOWORD(lParam);
-            int height = HIWORD(lParam);
-            MoveWindow(editBox, 6, 6, width > 12 ? width - 12 : 1, height > 41 ? height - 41 : 1, TRUE);
-            MoveWindow(okButton, (width - 75) / 2, height - 29, 75, 23, TRUE);
-            int gripWidth = GetSystemMetrics(SM_CXVSCROLL);
-            int gripHeight = GetSystemMetrics(SM_CYHSCROLL);
-            MoveWindow(sizeGrip, width - gripWidth, height - gripHeight, gripWidth, gripHeight, TRUE);
-            ShowWindow(sizeGrip, wParam == SIZE_MAXIMIZED || wParam == SIZE_MINIMIZED ? SW_HIDE : SW_SHOW);
-            return 0;
-        }
-        case WM_COMMAND:
-            if (LOWORD(wParam) == IDOK && !running) {
-                DestroyWindow(window);
-            }
-            return 0;
-        case WM_CLOSE:
-            if (!running) {
-                DestroyWindow(window);
-            }
-            return 0;
-        case WM_DESTROY:
-            PostQuitMessage(0);
-            return 0;
-    }
-    return DefWindowProcA(window, message, wParam, lParam);
+/// Maps a native control rectangle into the parent dialog's client coordinates.
+static RECT ControlRect(HWND control, HWND parent) {
+    RECT rectangle = {};
+    GetWindowRect(control, &rectangle);
+    MapWindowPoints(HWND_DESKTOP, parent, reinterpret_cast<POINT*>(&rectangle), 2);
+    return rectangle;
 }
 
-/// Starts the CRT-free GUI application and resolves the adjacent iSignum.exe path.
-/// Runs the window message loop and exits through the Windows API.
+/// Anchors the log, centered button and clipped size grip using the resource's native dimensions.
+static void LayoutMainForm(HWND window) {
+    if (!editBox || IsIconic(window)) {
+        return;
+    }
+    RECT client = {};
+    GetClientRect(window, &client);
+    int buttonY = client.bottom - layout.buttonBottom - layout.button.cy;
+    int editWidth = client.right - 2 * layout.margin.x;
+    int editHeight = buttonY - layout.editButtonGap - layout.margin.y;
+    SetWindowPos(editBox, nullptr, layout.margin.x, layout.margin.y,
+        editWidth > 0 ? editWidth : 1, editHeight > 0 ? editHeight : 1, SWP_NOZORDER | SWP_NOACTIVATE);
+    SetWindowPos(okButton, nullptr, (client.right - layout.button.cx) / 2, buttonY,
+        layout.button.cx, layout.button.cy, SWP_NOZORDER | SWP_NOACTIVATE);
+    int gripWidth = GetSystemMetrics(SM_CXVSCROLL);
+    int gripHeight = GetSystemMetrics(SM_CYHSCROLL);
+    SetWindowPos(sizeGrip, HWND_BOTTOM, client.right - gripWidth, client.bottom - gripHeight,
+        gripWidth, gripHeight, SWP_NOACTIVATE | (IsZoomed(window) ? SWP_HIDEWINDOW : SWP_SHOWWINDOW));
+}
+
+/// Uses the resource-created controls and retains their Windows-mapped sizes before processing starts.
+static BOOL InitializeMainForm(HWND window) {
+    mainWindow = window;
+    editBox = GetDlgItem(window, IDC_LOG);
+    okButton = GetDlgItem(window, IDOK);
+    sizeGrip = GetDlgItem(window, IDC_SIZE_GRIP);
+    if (!editBox || !okButton || !sizeGrip || !InstallSelectionEditHandler(editBox)) {
+        return FALSE;
+    }
+    RECT client = {};
+    GetClientRect(window, &client);
+    RECT edit = ControlRect(editBox, window);
+    RECT button = ControlRect(okButton, window);
+    layout.button = SIZE{ button.right - button.left, button.bottom - button.top };
+    layout.margin = POINT{ edit.left, edit.top };
+    layout.buttonBottom = client.bottom - button.bottom;
+    layout.editButtonGap = button.top - edit.bottom;
+    SendMessageA(editBox, EM_SETLIMITTEXT, 65535, 0);
+    EnableWindow(okButton, FALSE);
+    LayoutMainForm(window);
+    PostMessageA(window, WM_APP + 1, 0, 0);
+    return TRUE;
+}
+
+/// Starts the existing worker and reports a native thread-creation failure in the log.
+static void StartWorker(HWND window) {
+    HANDLE thread = CreateThread(nullptr, 0, worker, nullptr, 0, nullptr);
+    if (thread) {
+        CloseHandle(thread);
+    } else {
+        logline("ERROR: The worker thread could not be started.");
+        PostMessageA(window, WM_APP + 2, 0, 0);
+    }
+}
+
+/// Enables normal dialog dismissal after the worker has completed.
+static void CompleteProcessing(HWND window, WPARAM result) {
+    running = FALSE;
+    SetWindowTextA(window, result ? "iSignumPatcher - Completed" : "iSignumPatcher - Failed");
+    EnableWindow(okButton, TRUE);
+    SetFocus(okButton);
+}
+
+/// Closes the main dialog only after file processing has finished.
+static void CloseMainForm(HWND window) {
+    if (!running) {
+        DestroyWindow(window);
+    }
+}
+
+/// Handles the resource-based main dialog's lifecycle, resizing and worker notifications.
+static INT_PTR CALLBACK proc(HWND window, UINT message, WPARAM wParam, LPARAM) {
+    switch (message) {
+        case WM_INITDIALOG:
+            if (!InitializeMainForm(window)) {
+                DestroyWindow(window);
+                return FALSE;
+            }
+            return TRUE;
+        case WM_APP + 1:
+            StartWorker(window);
+            return TRUE;
+        case WM_APP + 2:
+            CompleteProcessing(window, wParam);
+            return TRUE;
+        case WM_SIZE:
+            LayoutMainForm(window);
+            return TRUE;
+        case WM_COMMAND:
+            if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL) {
+                CloseMainForm(window);
+                return TRUE;
+            }
+            break;
+        case WM_CLOSE:
+            CloseMainForm(window);
+            return TRUE;
+        case WM_DESTROY:
+            PostQuitMessage(0);
+            return TRUE;
+    }
+    return FALSE;
+}
+
+/// Starts the CRT-free application with the system-font dialog resource and Windows-selected position.
 extern "C" void WINAPI Start() {
-    DWORD length = GetModuleFileNameA(0, inputPath, MAX_PATH);
+    DWORD length = GetModuleFileNameA(nullptr, inputPath, MAX_PATH);
     if (!length || length >= MAX_PATH) {
-        MessageBoxA(0, "ERROR: The application path is too long.", "iSignum", MB_OK | MB_ICONERROR);
+        MessageBoxA(nullptr, "ERROR: The application path is too long.", "iSignum", MB_OK | MB_ICONERROR);
         ExitProcess(1);
     }
-    char* last = 0;
+    char* last = nullptr;
     for (char* p = inputPath; *p; ++p) {
         if (*p == '\\') {
             last = p;
@@ -142,27 +225,34 @@ extern "C" void WINAPI Start() {
         ExitProcess(1);
     }
     lstrcpyA(last + 1, "iSignum.exe");
-    WNDCLASSA cls = { 0 };
-    cls.lpfnWndProc = proc;
-    cls.hInstance = GetModuleHandleA(0);
-    cls.hCursor = LoadCursorA(0, IDC_ARROW);
-    cls.hbrBackground = (HBRUSH)(COLOR_BTNFACE + 1);
-    cls.lpszClassName = "iSignumPatcherWindow";
-    if (!RegisterClassA(&cls)) {
+    HINSTANCE instance = GetModuleHandleW(nullptr);
+    DLGTEMPLATE* definition = LoadSystemDialogTemplate(instance, IDD_MAIN, nullptr);
+    if (!definition) {
         ExitProcess(1);
     }
-    mainWindow = CreateWindowExA(0, cls.lpszClassName, "iSignumPatcher - Disable Custom Style",
-        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 400, 200, 0, 0, cls.hInstance, 0);
-    if (!mainWindow) {
+    mainWindow = CreateDialogIndirectParamW(instance, definition, nullptr, proc, 0);
+    HeapFree(GetProcessHeap(), 0, definition);
+    if (!mainWindow || !IsWindow(mainWindow)) {
         ExitProcess(1);
+    }
+    RECT bounds = {};
+    GetWindowRect(mainWindow, &bounds);
+    HWND positionWindow = CreateWindowExW(0, L"STATIC", L"", WS_OVERLAPPED,
+        CW_USEDEFAULT, CW_USEDEFAULT, bounds.right - bounds.left, bounds.bottom - bounds.top,
+        nullptr, nullptr, instance, nullptr);
+    if (positionWindow) {
+        GetWindowRect(positionWindow, &bounds);
+        DestroyWindow(positionWindow);
+        SetWindowPos(mainWindow, nullptr, bounds.left, bounds.top, 0, 0,
+            SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     }
     ShowWindow(mainWindow, SW_SHOW);
     UpdateWindow(mainWindow);
     MSG message;
-    while (GetMessageA(&message, 0, 0, 0) > 0) {
-        if (!IsDialogMessageA(mainWindow, &message)) {
+    while (GetMessageW(&message, nullptr, 0, 0) > 0) {
+        if (!IsDialogMessageW(mainWindow, &message)) {
             TranslateMessage(&message);
-            DispatchMessageA(&message);
+            DispatchMessageW(&message);
         }
     }
     ExitProcess(0);

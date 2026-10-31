@@ -68,12 +68,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SystemDialogTemplate.cpp">
+      <PreprocessorDefinitions>UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
     <ClCompile Include="SelectionEdit.cpp" />
     <ClCompile Include="core.cpp" />
     <ClCompile Include="runtime.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="core.h" />
+    <ClInclude Include="SystemDialogTemplate.h" />
     <ClInclude Include="SelectionEdit.h" />
     <ClInclude Include="resource.h" />
   </ItemGroup>

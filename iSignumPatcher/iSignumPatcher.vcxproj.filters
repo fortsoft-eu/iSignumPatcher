@@ -22,6 +22,9 @@
     <ClCompile Include="SelectionEdit.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="SystemDialogTemplate.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -34,6 +37,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="SelectionEdit.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="SystemDialogTemplate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="core.h">
