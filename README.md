@@ -2,8 +2,8 @@
 
 ## Building with Visual Studio 2015
 
-Open `iSignumPatcher.sln`, select **Release | Win32**, and press **Ctrl+Shift+B**.
-The standalone executable is written to `bin\Release\iSignumPatcher.exe`.
+Open `iSignumPatcher.sln`, select **Release | x86**, and press **Ctrl+Shift+B**.
+The standalone executable is written to `Release\iSignumPatcher.exe`.
 
 The project uses the v140 toolset and the Win32 API, without the C runtime (CRT) or third-party DLLs. The required `postbuild.ps1` script runs automatically after the build and sets the PE minimum OS and subsystem versions to Windows NT 4.0. PowerShell is not required on the computer that runs the patcher.
 
@@ -25,8 +25,8 @@ The user has confirmed that the patcher works on **Windows NT 4.0, Windows 2000,
 
 ## Sestavení ve Visual Studio 2015
 
-Otevřete `iSignumPatcher.sln`, vyberte **Release | Win32** a stiskněte **Ctrl+Shift+B**.
-Výsledný samostatný soubor: `bin\Release\iSignumPatcher.exe`.
+Otevřete `iSignumPatcher.sln`, vyberte **Release | x86** a stiskněte **Ctrl+Shift+B**.
+Výsledný samostatný soubor: `Release\iSignumPatcher.exe`.
 
 Projekt používá v140, Win32 API a žádné CRT ani externí DLL. Skript `postbuild.ps1` se automaticky spouští po sestavení a nastaví PE pro Windows NT 4.0; je nezbytnou součástí projektu. Na cílovém počítači není PowerShell potřeba.
 

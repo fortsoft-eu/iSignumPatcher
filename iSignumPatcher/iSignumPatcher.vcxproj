@@ -28,8 +28,8 @@
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <PropertyGroup>
-    <OutDir>$(ProjectDir)..\bin\$(Configuration)\</OutDir>
-    <IntDir>$(ProjectDir)..\obj\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)$(Configuration)\</OutDir>
+    <IntDir>$(Configuration)\</IntDir>
     <TargetName>iSignumPatcher</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
@@ -79,9 +79,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="postbuild.ps1" />
-    <None Include="..\README.md">
-      <Link>README.md</Link>
-    </None>
+    <None Include="..\license.txt" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="iSignumPatcher.rc" />
