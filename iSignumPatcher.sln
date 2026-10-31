@@ -5,6 +5,11 @@ VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "iSignumPatcher", "iSignumPatcher", "{B20DF3D5-0023-4F64-A3B9-2C2356CAFE42}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{8858C2F8-346A-4329-9E30-F9927C2E3484}"
+	ProjectSection(SolutionItems) = preProject
+		PackageRelease.ps1 = PackageRelease.ps1
+	EndProjectSection
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "iSignumPatcher", "iSignumPatcher\iSignumPatcher.vcxproj", "{2F5AE61D-9F32-4FF8-A250-59AB1A32AD50}"
 EndProject
 Global

@@ -7,6 +7,15 @@ The standalone executable is written to `Release\iSignumPatcher.exe`.
 
 The project uses the v140 toolset and the Win32 API, without the C runtime (CRT) or third-party DLLs. The required `postbuild.ps1` script runs automatically after the build and sets the PE minimum OS and subsystem versions to Windows NT 4.0. PowerShell is not required on the computer that runs the patcher.
 
+## Release package
+
+After building Release, run `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\PackageRelease.ps1`.
+The script creates `iSignumPatcher-<version>-win32.zip` with `iSignumPatcher.exe` and `license.txt` at its root.
+Signing uses `BUILD_SIGNER_NAME` or `BUILD_CERTIFICATE_THUMBPRINT`; optional settings are `BUILD_SIGNTOOL_PATH`
+and `BUILD_TIMESTAMP_SERVER`. The equivalent script parameters are `SignerName`, `CertificateThumbprint`,
+`SignToolPath`, and `TimestampServer`. Signing affects only the copy included in the ZIP.
+Without a selected certificate, unsigned files remain unsigned.
+
 ## Usage
 
 Place the patcher next to `iSignum.exe` and run it. Progress and results appear in the log window. Click **OK** when processing finishes.
@@ -29,6 +38,15 @@ Otevřete `iSignumPatcher.sln`, vyberte **Release | x86** a stiskněte **Ctrl+Sh
 Výsledný samostatný soubor: `Release\iSignumPatcher.exe`.
 
 Projekt používá v140, Win32 API a žádné CRT ani externí DLL. Skript `postbuild.ps1` se automaticky spouští po sestavení a nastaví PE pro Windows NT 4.0; je nezbytnou součástí projektu. Na cílovém počítači není PowerShell potřeba.
+
+## Distribuční balíček
+
+Po sestavení Release spusťte `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\PackageRelease.ps1`.
+Skript vytvoří `iSignumPatcher-<verze>-win32.zip` se soubory `iSignumPatcher.exe` a `license.txt` přímo v kořeni.
+Podepisování používá `BUILD_SIGNER_NAME` nebo `BUILD_CERTIFICATE_THUMBPRINT`; volitelné nastavení je
+`BUILD_SIGNTOOL_PATH` a `BUILD_TIMESTAMP_SERVER`. Odpovídající parametry skriptu jsou `SignerName`,
+`CertificateThumbprint`, `SignToolPath` a `TimestampServer`. Podepisuje se pouze kopie zahrnutá do ZIPu.
+Bez zvoleného certifikátu zůstanou nepodepsané soubory nepodepsané.
 
 ## Použití
 
