@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.1
+ * Last modified for version 1.0.0.2
  */
 
 #include "core.h"
@@ -175,27 +175,7 @@ static int symbol(Bits* b, Huff* h) {
 /// Supports stored, fixed-Huffman, and dynamic-Huffman blocks and checks buffer bounds.
 /// Returns TRUE only when input consumption and output length match the supplied sizes.
 static BOOL inflate(const BYTE* src, DWORD ns, BYTE* out, DWORD no) {
-    static const BYTE order[19] = {
-        16,
-        17,
-        18,
-        0,
-        8,
-        7,
-        9,
-        6,
-        10,
-        5,
-        11,
-        4,
-        12,
-        3,
-        13,
-        2,
-        14,
-        1,
-        15
-    };
+    static const BYTE order[19] = { 16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15 };
     static const WORD lb[29] = {
         3,
         4,
@@ -322,14 +302,7 @@ static BOOL inflate(const BYTE* src, DWORD ns, BYTE* out, DWORD no) {
         13,
         13
     };
-    Bits b = {
-        src,
-        ns,
-        0,
-        0,
-        0,
-        TRUE
-    };
+    Bits b = { src, ns, 0, 0, 0, TRUE };
     DWORD pos = 0;
     BOOL last = FALSE;
     Huff h, d, c;
@@ -410,7 +383,7 @@ static BOOL inflate(const BYTE* src, DWORD ns, BYTE* out, DWORD no) {
         } else {
             return FALSE;
         }
-        for (;;) {
+        while (true) {
             int s = symbol(&b, &h);
             if (!b.ok) {
                 return FALSE;
@@ -512,23 +485,7 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
     if (!peinit(&p, b, n)) {
         return 0;
     }
-    static const BYTE name[] = {
-        7,
-        13,
-        'T',
-        's',
-        'S',
-        'k',
-        'i',
-        'n',
-        'M',
-        'a',
-        'n',
-        'a',
-        'g',
-        'e',
-        'r'
-    };
+    static const BYTE name[] = { 7, 13, 'T', 's', 'S', 'k', 'i', 'n', 'M', 'a', 'n', 'a', 'g', 'e', 'r' };
     DWORD r = 0, hits = 0;
     for (DWORD i = 0; range(i, sizeof(name), n); i++) {
         if (eq(b + i, name, sizeof(name))) {
@@ -583,21 +540,7 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
         return 0;
     }
     DWORD so = offset(&p, av, TRUE);
-    static const BYTE sig[] = {
-        0x53,
-        0x8b,
-        0xd8,
-        0x3a,
-        0x53,
-        0x40,
-        0x74,
-        0x7e,
-        0x88,
-        0x53,
-        0x40,
-        0x84,
-        0xd2
-    };
+    static const BYTE sig[] = { 0x53, 0x8b, 0xd8, 0x3a, 0x53, 0x40, 0x74, 0x7e, 0x88, 0x53, 0x40, 0x84, 0xd2 };
     if (!range(so, sizeof(sig), n)
             || !eq(b + so + 1, sig + 1, sizeof(sig) - 1)
             || b[so] != 0x53 && b[so] != 0xc3) {
@@ -609,21 +552,8 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
         if (b[i] != 0xc6 || b[i + 1] != 0x43 || b[i + 2] != 0x40 || b[i + 3] > 1) {
             continue;
         }
-        static const BYTE a[] = {
-            0x8b,
-            0xcb,
-            0xb2,
-            1,
-            0xa1
-        };
-        static const BYTE z[] = {
-            0x89,
-            0x83,
-            0xf8,
-            0,
-            0,
-            0
-        };
+        static const BYTE a[] = { 0x8b, 0xcb, 0xb2, 1, 0xa1 };
+        static const BYTE z[] = { 0x89, 0x83, 0xf8, 0, 0, 0 };
         if (!eq(b + i + 4, a, 5) || b[i + 13] != 0xe8 || !eq(b + i + 18, z, 6)) {
             continue;
         }
@@ -792,7 +722,6 @@ static BOOL patchLoadedFile(const char* path, LogFn log, BYTE* input, DWORD n, B
         log("ERROR: Output file verification failed. The original file was preserved.");
         return FALSE;
     }
-
     if (!MoveFileExA(temp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
         log("ERROR: The original file could not be replaced. It may be in use. The original file was preserved.");
         return FALSE;
@@ -814,9 +743,7 @@ BOOL PatchFile(const char* path, LogFn log) {
     }
     log("OK: File \"iSignum.exe\" was loaded.");
     BYTE* payload = input;
-    char temp[MAX_PATH] = {
-        0
-    };
+    char temp[MAX_PATH] = { 0 };
     BOOL ok = patchLoadedFile(path, log, input, n, payload, temp);
     if (temp[0]) {
         DeleteFileA(temp);

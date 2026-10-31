@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.1
+ * Last modified for version 1.0.0.2
  */
 
 #include "core.h"
@@ -52,9 +52,9 @@ static DWORD WINAPI worker(void*) {
 static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wParam, LPARAM lParam) {
     switch (message) {
         case WM_CREATE:
-            editBox = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP | WS_HSCROLL
-                | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL | ES_AUTOVSCROLL, 6, 6, 600, 300, window,
-                (HMENU)10, 0, 0);
+            editBox = CreateWindowExW(WS_EX_CLIENTEDGE, L"EDIT", L"", WS_CHILD | WS_VISIBLE | WS_TABSTOP
+                | WS_HSCROLL | WS_VSCROLL | ES_MULTILINE | ES_READONLY | ES_AUTOHSCROLL | ES_AUTOVSCROLL,
+                6, 6, 600, 300, window, (HMENU)10, 0, 0);
             if (!editBox) {
                 return -1;
             }
@@ -62,13 +62,14 @@ static LRESULT CALLBACK proc(HWND window, UINT message, WPARAM wParam, LPARAM lP
                 return -1;
             }
             SendMessageA(editBox, EM_SETLIMITTEXT, 65535, 0);
-            okButton = CreateWindowA("BUTTON", "OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, 260, 312, 75,
-                23, window, (HMENU)IDOK, 0, 0);
+            okButton = CreateWindowA("BUTTON", "OK", WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON,
+                260, 312, 75, 23, window, (HMENU)IDOK, 0, 0);
             if (!okButton) {
                 return -1;
             }
-            sizeGrip = CreateWindowA("SCROLLBAR", "", WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP | SBS_SIZEBOXBOTTOMRIGHTALIGN,
-                0, 0, GetSystemMetrics(SM_CXVSCROLL), GetSystemMetrics(SM_CYHSCROLL), window, 0, 0, 0);
+            sizeGrip = CreateWindowA("SCROLLBAR", "", WS_CHILD | WS_VISIBLE | SBS_SIZEGRIP
+                | SBS_SIZEBOXBOTTOMRIGHTALIGN, 0, 0, GetSystemMetrics(SM_CXVSCROLL),
+                GetSystemMetrics(SM_CYHSCROLL), window, 0, 0, 0);
             if (!sizeGrip) {
                 return -1;
             }
@@ -150,8 +151,8 @@ extern "C" void WINAPI Start() {
     if (!RegisterClassA(&cls)) {
         ExitProcess(1);
     }
-    mainWindow = CreateWindowExA(0, cls.lpszClassName, "iSignumPatcher - Disable Custom Style", WS_OVERLAPPEDWINDOW,
-        CW_USEDEFAULT, CW_USEDEFAULT, 400, 200, 0, 0, cls.hInstance, 0);
+    mainWindow = CreateWindowExA(0, cls.lpszClassName, "iSignumPatcher - Disable Custom Style",
+        WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 400, 200, 0, 0, cls.hInstance, 0);
     if (!mainWindow) {
         ExitProcess(1);
     }
