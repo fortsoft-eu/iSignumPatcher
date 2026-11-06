@@ -21,21 +21,95 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.2
+ * Last modified for version 1.0.0.3
  */
 
 #include "SystemDialogTemplate.h"
 
-static const SIZE_T extendedDialogHeaderSize = 26;
-static const SIZE_T extendedFontHeaderSize = 6;
+/// Native monitor handle hidden by SDK headers while targeting Windows NT 4.0.
+#if WINVER < 0x0500 && !defined(HMONITOR_DECLARED)
+#define HMONITOR_DECLARED
+DECLARE_HANDLE(HMONITOR);
+#endif
 
-/// Reads the window DPI supplied by the application.
-UINT WindowDpi(HWND window);
+/// Signatures used to resolve optional window and monitor DPI exports without static imports.
+typedef UINT(WINAPI* GetDpiForWindowProc)(HWND window);
+typedef HMONITOR(WINAPI* MonitorFromWindowProc)(HWND window, DWORD flags);
+typedef HRESULT(WINAPI* GetDpiForMonitorProc)(HMONITOR monitor, int type, UINT* dpiX, UINT* dpiY);
 
-/// Creates the system message font supplied by the application.
-HFONT CreateUiFont(HWND window);
+/// Byte lengths of the fixed extended-dialog header and extended font attributes.
+static const SIZE_T EXTENDED_DIALOG_HEADER_SIZE = 26;
+static const SIZE_T EXTENDED_FONT_HEADER_SIZE = 6;
 
-/// Advances past one variable-length dialog-template field while checking its bounds.
+/// System library names and native monitor-DPI query options.
+static const wchar_t USER_LIBRARY_NAME[] = L"user32.dll";
+static const wchar_t SHCORE_LIBRARY_SUFFIX[] = L"\\shcore.dll";
+static const DWORD NEAREST_WINDOW_MONITOR = 0x00000002;
+static const int EFFECTIVE_MONITOR_DPI = 0;
+
+/// Returns window or monitor DPI when supported, otherwise DC DPI; a null window uses the screen DC.
+/// Returns 96 if the device context or its DPI is unavailable.
+UINT GetSystemDialogDpi(HWND window) {
+    HMODULE module = GetModuleHandleW(USER_LIBRARY_NAME);
+    GetDpiForWindowProc getDpi = nullptr;
+    if (module != nullptr) {
+        getDpi = reinterpret_cast<GetDpiForWindowProc>(GetProcAddress(module, "GetDpiForWindow"));
+    }
+    if (getDpi != nullptr && window != nullptr) {
+        UINT dpi = getDpi(window);
+        if (dpi != 0) {
+            return dpi;
+        }
+    }
+    MonitorFromWindowProc monitorFromWindow = module == nullptr
+        ? nullptr
+        : reinterpret_cast<MonitorFromWindowProc>(GetProcAddress(module, "MonitorFromWindow"));
+    if (window != nullptr && monitorFromWindow != nullptr) {
+        wchar_t path[MAX_PATH];
+        UINT length = GetSystemDirectoryW(path, MAX_PATH);
+        if (length != 0 && length + lstrlenW(SHCORE_LIBRARY_SUFFIX) < MAX_PATH) {
+            lstrcatW(path, SHCORE_LIBRARY_SUFFIX);
+            HMODULE scaling = LoadLibraryW(path);
+            if (scaling != nullptr) {
+                GetDpiForMonitorProc getMonitorDpi =
+                    reinterpret_cast<GetDpiForMonitorProc>(GetProcAddress(scaling, "GetDpiForMonitor"));
+                UINT dpiX = 0;
+                UINT dpiY = 0;
+                bool success = getMonitorDpi != nullptr && SUCCEEDED(getMonitorDpi(
+                    monitorFromWindow(window, NEAREST_WINDOW_MONITOR), EFFECTIVE_MONITOR_DPI, &dpiX, &dpiY));
+                FreeLibrary(scaling);
+                if (success && dpiY != 0) {
+                    return dpiY;
+                }
+            }
+        }
+    }
+    HDC dc = GetDC(window);
+    if (dc == nullptr) {
+        return 96;
+    }
+    UINT dpi = GetDeviceCaps(dc, LOGPIXELSY);
+    ReleaseDC(window, dc);
+    return dpi == 0 ? 96 : dpi;
+}
+
+/// Creates the current system message font scaled from system DPI to the target window DPI.
+/// Returns a caller-owned font, or null if system metrics or font creation fails.
+HFONT CreateSystemDialogFont(HWND window) {
+    NONCLIENTMETRICSW metrics = {};
+    metrics.cbSize = static_cast<UINT>(FIELD_OFFSET(NONCLIENTMETRICSW, lfMessageFont)
+        + sizeof(metrics.lfMessageFont));
+    if (!SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, metrics.cbSize, &metrics, 0)) {
+        return nullptr;
+    }
+    UINT dpi = GetSystemDialogDpi(window);
+    UINT systemDpi = GetSystemDialogDpi(nullptr);
+    metrics.lfMessageFont.lfHeight = MulDiv(metrics.lfMessageFont.lfHeight, dpi, systemDpi);
+    metrics.lfMessageFont.lfWidth = MulDiv(metrics.lfMessageFont.lfWidth, dpi, systemDpi);
+    return CreateFontIndirectW(&metrics.lfMessageFont);
+}
+
+/// Skips one empty, ordinal, or null-terminated UTF-16 field; returns false if its words are truncated.
 static bool SkipDialogField(const WORD*& cursor, const WORD* end) {
     if (cursor == end) {
         return false;
@@ -48,7 +122,7 @@ static bool SkipDialogField(const WORD*& cursor, const WORD* end) {
         ++cursor;
         return true;
     }
-    while (value) {
+    while (value != 0) {
         if (cursor == end) {
             return false;
         }
@@ -57,10 +131,11 @@ static bool SkipDialogField(const WORD*& cursor, const WORD* end) {
     return true;
 }
 
-/// Converts the selected system message font to dialog-template point size at the owner DPI.
+/// Converts the font's measured character height, excluding internal leading, to points at the owner's DPI.
+/// Returns zero if the device context or font metrics cannot be obtained.
 static UINT DialogFontPoints(HWND owner, HFONT font) {
     HDC dc = GetDC(owner);
-    if (!dc) {
+    if (dc == nullptr) {
         return 0;
     }
     HGDIOBJ previous = SelectObject(dc, font);
@@ -68,49 +143,57 @@ static UINT DialogFontPoints(HWND owner, HFONT font) {
     BOOL measured = GetTextMetricsW(dc, &metrics);
     SelectObject(dc, previous);
     ReleaseDC(owner, dc);
-    return measured ? MulDiv(metrics.tmHeight - metrics.tmInternalLeading, 72, WindowDpi(owner)) : 0;
+    if (measured) {
+        return MulDiv(metrics.tmHeight - metrics.tmInternalLeading, 72, GetSystemDialogDpi(owner));
+    }
+    return 0;
 }
 
-/// Copies an extended dialog template and embeds the current system message font.
-DLGTEMPLATE* LoadSystemDialogTemplate(HINSTANCE instance, UINT resourceId, HWND owner) {
+/// Copies an extended dialog resource without DS_SETFONT and inserts the supplied or current system message
+/// font. Preserves menu, class, title, control data and DWORD alignment; the supplied font remains
+/// caller-owned. Returns a template to free with HeapFree(GetProcessHeap(), 0, ...), or null on resource,
+/// format, font or allocation failure.
+DLGTEMPLATE* LoadSystemDialogTemplate(HINSTANCE instance, UINT resourceId, HWND owner, HFONT dialogFont) {
     HRSRC resource = FindResourceW(instance, MAKEINTRESOURCEW(resourceId), RT_DIALOG);
-    HGLOBAL loaded = resource ? LoadResource(instance, resource) : nullptr;
-    DWORD size = resource ? SizeofResource(instance, resource) : 0;
-    const BYTE* source = loaded ? static_cast<const BYTE*>(LockResource(loaded)) : nullptr;
-    if (!source
-            || size < extendedDialogHeaderSize
+    HGLOBAL loaded = resource == nullptr ? nullptr : LoadResource(instance, resource);
+    DWORD size = resource == nullptr ? 0 : SizeofResource(instance, resource);
+    const BYTE* source = loaded == nullptr ? nullptr : static_cast<const BYTE*>(LockResource(loaded));
+    if (source == nullptr
+            || size < EXTENDED_DIALOG_HEADER_SIZE
             || reinterpret_cast<const WORD*>(source)[1] != 0xFFFF
             || *reinterpret_cast<const DWORD*>(source + 12) & DS_SETFONT) {
         return nullptr;
     }
-    const WORD* cursor = reinterpret_cast<const WORD*>(source + extendedDialogHeaderSize);
+    const WORD* cursor = reinterpret_cast<const WORD*>(source + EXTENDED_DIALOG_HEADER_SIZE);
     const WORD* end = reinterpret_cast<const WORD*>(source + size);
-    for (UINT index = 0; index < 3; ++index) {
+    for (UINT index = 0; index < 3; index++) {
         if (!SkipDialogField(cursor, end)) {
             return nullptr;
         }
     }
     SIZE_T fontOffset = reinterpret_cast<const BYTE*>(cursor) - source;
-    SIZE_T controlsOffset = fontOffset + 3 & ~static_cast<SIZE_T>(3);
+    SIZE_T controlsOffset = *reinterpret_cast<const WORD*>(source + 16) == 0
+        ? fontOffset
+        : fontOffset + 3 & ~static_cast<SIZE_T>(3);
     if (controlsOffset > size) {
         return nullptr;
     }
-    HFONT font = CreateUiFont(owner);
+    HFONT font = dialogFont == nullptr ? CreateSystemDialogFont(owner) : dialogFont;
     LOGFONTW description = {};
-    UINT points = font ? DialogFontPoints(owner, font) : 0;
-    bool described = font && GetObjectW(font, sizeof(description), &description);
-    if (font) {
+    UINT points = font == nullptr ? 0 : DialogFontPoints(owner, font);
+    bool described = font != nullptr && GetObjectW(font, sizeof(description), &description);
+    if (dialogFont == nullptr && font != nullptr) {
         DeleteObject(font);
     }
-    if (!described || !points || points >= 0x7FFF) {
+    if (!described || points == 0 || points >= 0x7FFF) {
         return nullptr;
     }
     SIZE_T faceBytes = (lstrlenW(description.lfFaceName) + 1) * sizeof(wchar_t);
-    SIZE_T fontSize = extendedFontHeaderSize + faceBytes;
+    SIZE_T fontSize = EXTENDED_FONT_HEADER_SIZE + faceBytes;
     SIZE_T newControlsOffset = fontOffset + fontSize + 3 & ~static_cast<SIZE_T>(3);
     SIZE_T newSize = newControlsOffset + size - controlsOffset;
     BYTE* copy = static_cast<BYTE*>(HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, newSize));
-    if (!copy) {
+    if (copy == nullptr) {
         return nullptr;
     }
     CopyMemory(copy, source, fontOffset);
@@ -121,7 +204,7 @@ DLGTEMPLATE* LoadSystemDialogTemplate(HINSTANCE instance, UINT resourceId, HWND 
     BYTE* flags = reinterpret_cast<BYTE*>(attributes + 2);
     flags[0] = description.lfItalic;
     flags[1] = description.lfCharSet;
-    CopyMemory(copy + fontOffset + extendedFontHeaderSize, description.lfFaceName, faceBytes);
+    CopyMemory(copy + fontOffset + EXTENDED_FONT_HEADER_SIZE, description.lfFaceName, faceBytes);
     CopyMemory(copy + newControlsOffset, source + controlsOffset, size - controlsOffset);
     return reinterpret_cast<DLGTEMPLATE*>(copy);
 }

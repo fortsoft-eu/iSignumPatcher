@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.2
+ * Last modified for version 1.0.0.3
  */
 
 #include "core.h"
@@ -540,7 +540,21 @@ static int inspect(BYTE* b, DWORD n, DWORD* ctor, DWORD* setter) {
         return 0;
     }
     DWORD so = offset(&p, av, TRUE);
-    static const BYTE sig[] = { 0x53, 0x8b, 0xd8, 0x3a, 0x53, 0x40, 0x74, 0x7e, 0x88, 0x53, 0x40, 0x84, 0xd2 };
+    static const BYTE sig[] = {
+        0x53,
+        0x8b,
+        0xd8,
+        0x3a,
+        0x53,
+        0x40,
+        0x74,
+        0x7e,
+        0x88,
+        0x53,
+        0x40,
+        0x84,
+        0xd2
+    };
     if (!range(so, sizeof(sig), n)
             || !eq(b + so + 1, sig + 1, sizeof(sig) - 1)
             || b[so] != 0x53 && b[so] != 0xc3) {
@@ -711,7 +725,8 @@ static BOOL patchLoadedFile(const char* path, LogFn log, BYTE* input, DWORD n, B
         CloseHandle(h);
     }
     if (!written) {
-        log("ERROR: The output file could not be written or flushed to disk. The original file was preserved.");
+        log("ERROR: The output file could not be written or flushed to disk. The original file was "
+            "preserved.");
         return FALSE;
     }
     DWORD checkSize = 0;
@@ -723,11 +738,13 @@ static BOOL patchLoadedFile(const char* path, LogFn log, BYTE* input, DWORD n, B
         return FALSE;
     }
     if (!MoveFileExA(temp, path, MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
-        log("ERROR: The original file could not be replaced. It may be in use. The original file was preserved.");
+        log("ERROR: The original file could not be replaced. It may be in use. The original file was "
+            "preserved.");
         return FALSE;
     }
     temp[0] = 0;
-    log("OK: Processing completed successfully. File \"iSignum.exe\" was replaced with the verified executable.");
+    log("OK: Processing completed successfully. File \"iSignum.exe\" was replaced with the verified "
+        "executable.");
     return TRUE;
 }
 

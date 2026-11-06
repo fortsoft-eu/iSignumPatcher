@@ -21,16 +21,13 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.2
+ * Last modified for version 1.0.0.3
  */
 
 #include "core.h"
 #include "SelectionEdit.h"
 #include "SystemDialogTemplate.h"
 #include "resource.h"
-
-/// Optional modern DPI entry point, resolved without adding a newer user32.dll import.
-typedef UINT(WINAPI* GetDpiFunction)(HWND);
 
 /// Control dimensions and gaps read from the Windows-scaled dialog resource.
 struct MainFormLayout {
@@ -47,40 +44,6 @@ static HWND mainWindow;
 static MainFormLayout layout;
 static BOOL running = TRUE;
 static char inputPath[MAX_PATH];
-
-UINT WindowDpi(HWND window) {
-    GetDpiFunction function =
-        reinterpret_cast<GetDpiFunction>(GetProcAddress(GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"));
-    if (function && window) {
-        return function(window);
-    }
-    HDC dc = GetDC(window);
-    UINT dpi = dc ? GetDeviceCaps(dc, LOGPIXELSY) : 96;
-    if (dc) {
-        ReleaseDC(window, dc);
-    }
-    return dpi ? dpi : 96;
-}
-
-HFONT CreateUiFont(HWND window) {
-    NONCLIENTMETRICSW metrics = NONCLIENTMETRICSW{};
-    metrics.cbSize = sizeof(metrics);
-    if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0)) {
-        HDC dc = GetDC(nullptr);
-        int systemDpi = dc ? GetDeviceCaps(dc, LOGPIXELSY) : 96;
-        if (dc) {
-            ReleaseDC(nullptr, dc);
-        }
-        metrics.lfMessageFont.lfHeight =
-            MulDiv(metrics.lfMessageFont.lfHeight, WindowDpi(window), systemDpi ? systemDpi : 96);
-        return CreateFontIndirectW(&metrics.lfMessageFont);
-    }
-    LOGFONTW font = LOGFONTW{};
-    font.lfHeight = -MulDiv(8, WindowDpi(window), 72);
-    font.lfCharSet = DEFAULT_CHARSET;
-    lstrcpyW(font.lfFaceName, L"MS Shell Dlg");
-    return CreateFontIndirectW(&font);
-}
 
 /// Appends a message and a CR/LF line ending to the read-only log control.
 static void logline(const char* text) {
