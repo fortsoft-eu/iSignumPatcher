@@ -52,9 +52,9 @@ Bez zvoleného certifikátu zůstanou nepodepsané soubory nepodepsané.
 
 Umístěte patcher vedle souboru `iSignum.exe` a spusťte jej. Operace se vypíšou do okna; po dokončení stiskněte **OK**.
 
-Packed vstup se rozbalí v paměti bez spuštění iSignum a bez Internetu. Po ověření vzoru AlphaSkins a výsledného zápisu patcher nahradí původní `iSignum.exe` rozbalenou aplikací bez stylů. Originál ani zálohu neponechává. Při detekované chybě jej nenahradí. Během operace soubor neupravujte ani nespouštějte.
+Zabalený vstup se rozbalí v paměti bez spuštění iSignum a bez Internetu. Po ověření vzoru AlphaSkins a výsledného zápisu patcher nahradí původní `iSignum.exe` rozbalenou aplikací s vypnutými vlastními styly. Originál ani zálohu neponechává. Při detekované chybě jej nenahradí. Během operace soubor neupravujte ani nespouštějte.
 
-Známé staré verze bez AlphaSkins pouze rozbalí, je-li to potřeba. Již patchovaný soubor znovu nemění. Neznámou strukturu odmítne; změna budoucí verze může vyžadovat úpravu detektoru.
+Známé staré verze bez AlphaSkins pouze rozbalí, je-li to potřeba. Již patchovaný soubor znovu nemění. Pokud není potřeba nic měnit, vypíše se hláška `INFO: Nothing to do.` Neznámou strukturu odmítne; změna budoucí verze může vyžadovat úpravu detektoru.
 
 Úprava zneplatní digitální podpis iSignum. Patcher se samotnými certifikáty nepracuje.
 

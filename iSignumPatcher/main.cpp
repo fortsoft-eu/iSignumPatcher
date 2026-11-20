@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  **
- * Last modified for version 1.0.0.3
+ * Last modified for version 1.0.0.5
  */
 
 #include "core.h"
@@ -141,6 +141,8 @@ static void CloseMainForm(HWND window) {
 /// Handles the resource-based main dialog's lifecycle, resizing and worker notifications.
 static INT_PTR CALLBACK proc(HWND window, UINT message, WPARAM wParam, LPARAM) {
     switch (message) {
+        case WM_CTLCOLORDLG:
+            return reinterpret_cast<INT_PTR>(GetSysColorBrush(COLOR_BTNFACE));
         case WM_INITDIALOG:
             if (!InitializeMainForm(window)) {
                 DestroyWindow(window);
